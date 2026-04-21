@@ -1,35 +1,52 @@
 --[[
     Grow a Garden - Auto-Buy Menu
-    С кнопками слева и областями выбора справа
+    С возможностью расширения и скрытия по кнопке
 ]]
 
 --// Services
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+--// Настройки горячих клавиш
+local TOGGLE_KEY = Enum.KeyCode.RightShift  -- Кнопка для показа/скрытия (можно изменить)
+local EXPAND_KEY = Enum.KeyCode.LeftControl -- Кнопка для расширения/сжатия (зажатая)
+
+--// Переменные состояния
+local isVisible = true
+local isExpanded = true
+local minimizedSize = UDim2.new(0, 220, 0, 50)  -- Размер свёрнутого меню
+local expandedSize = UDim2.new(0, 500, 0, 600) -- Размер развёрнутого меню
+
+-- Удаляем старый GUI если есть
+local oldGui = PlayerGui:FindFirstChild("AutoBuyGarden")
+if oldGui then oldGui:Destroy() end
 
 --// Создаём GUI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "AutoBuyGarden"
 ScreenGui.Parent = PlayerGui
 
---// Главное окно (большое)
+--// Главное окно
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 700, 0, 550)
-MainFrame.Position = UDim2.new(0.5, -350, 0.5, -275)
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+MainFrame.Size = expandedSize
+MainFrame.Position = UDim2.new(0.5, -250, 0.5, -300)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
 MainFrame.Parent = ScreenGui
 
 local MainCorner = Instance.new("UICorner")
 MainCorner.CornerRadius = UDim.new(0, 12)
 MainCorner.Parent = MainFrame
 
---// Заголовок
+--// Заголовок (всегда видимый)
 local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1, 0, 0, 45)
-TitleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
+TitleBar.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
 TitleBar.Parent = MainFrame
 
 local TitleCorner = Instance.new("UICorner")
@@ -37,12 +54,12 @@ TitleCorner.CornerRadius = UDim.new(0, 12)
 TitleCorner.Parent = TitleBar
 
 local TitleText = Instance.new("TextLabel")
-TitleText.Size = UDim2.new(1, -50, 1, 0)
+TitleText.Size = UDim2.new(1, -100, 1, 0)
 TitleText.Position = UDim2.new(0, 15, 0, 0)
 TitleText.BackgroundTransparency = 1
 TitleText.Text = "🌱 Auto-Buy | Grow a Garden"
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleText.TextSize = 20
+TitleText.TextSize = 18
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
 TitleText.Font = Enum.Font.GothamBold
 TitleText.Parent = TitleBar
@@ -50,7 +67,7 @@ TitleText.Parent = TitleBar
 --// Кнопка закрытия
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Size = UDim2.new(0, 35, 0, 35)
-CloseBtn.Position = UDim2.new(1, -45, 0, 5)
+CloseBtn.Position = UDim2.new(1, -90, 0, 5)
 CloseBtn.Text = "✕"
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseBtn.TextSize = 20
@@ -66,19 +83,40 @@ CloseBtn.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
+--// Кнопка сворачивания/разворачивания
+local ExpandBtn = Instance.new("TextButton")
+ExpandBtn.Size = UDim2.new(0, 35, 0, 35)
+ExpandBtn.Position = UDim2.new(1, -45, 0, 5)
+ExpandBtn.Text = "▼"
+ExpandBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ExpandBtn.TextSize = 20
+ExpandBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 70)
+ExpandBtn.BorderSizePixel = 0
+ExpandBtn.Parent = TitleBar
+
+local ExpandCorner = Instance.new("UICorner")
+ExpandCorner.CornerRadius = UDim.new(0, 8)
+ExpandCorner.Parent = ExpandBtn
+
+--// Контейнер для всего содержимого (будет скрываться при сворачивании)
+local ContentContainer = Instance.new("Frame")
+ContentContainer.Size = UDim2.new(1, 0, 1, -45)
+ContentContainer.Position = UDim2.new(0, 0, 0, 45)
+ContentContainer.BackgroundTransparency = 1
+ContentContainer.Parent = MainFrame
+
 --// ЛЕВАЯ ПАНЕЛЬ С КНОПКАМИ
 local LeftPanel = Instance.new("Frame")
-LeftPanel.Size = UDim2.new(0, 180, 1, -45)
-LeftPanel.Position = UDim2.new(0, 0, 0, 45)
-LeftPanel.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
+LeftPanel.Size = UDim2.new(0, 180, 1, 0)
+LeftPanel.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
 LeftPanel.BorderSizePixel = 0
-LeftPanel.Parent = MainFrame
+LeftPanel.Parent = ContentContainer
 
 local LeftPanelCorner = Instance.new("UICorner")
 LeftPanelCorner.CornerRadius = UDim.new(0, 0)
 LeftPanelCorner.Parent = LeftPanel
 
--- Контейнер для кнопок (с прокруткой если нужно)
+-- Контейнер для кнопок
 local ButtonsContainer = Instance.new("ScrollingFrame")
 ButtonsContainer.Size = UDim2.new(1, 0, 1, 0)
 ButtonsContainer.BackgroundTransparency = 1
@@ -97,13 +135,13 @@ ButtonsPadding.PaddingTop = UDim.new(0, 15)
 ButtonsPadding.PaddingBottom = UDim.new(0, 15)
 ButtonsPadding.Parent = ButtonsContainer
 
---// ПРАВАЯ ПАНЕЛЬ (СОДЕРЖИМОЕ)
+--// ПРАВАЯ ПАНЕЛЬ
 local RightPanel = Instance.new("Frame")
-RightPanel.Size = UDim2.new(1, -190, 1, -55)
-RightPanel.Position = UDim2.new(0, 190, 0, 50)
-RightPanel.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
+RightPanel.Size = UDim2.new(1, -190, 1, 0)
+RightPanel.Position = UDim2.new(0, 190, 0, 0)
+RightPanel.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
 RightPanel.BorderSizePixel = 0
-RightPanel.Parent = MainFrame
+RightPanel.Parent = ContentContainer
 
 local RightCorner = Instance.new("UICorner")
 RightCorner.CornerRadius = UDim.new(0, 10)
@@ -131,11 +169,10 @@ RightPadding.Parent = RightScroll
 
 --// === ФУНКЦИИ СОЗДАНИЯ ЭЛЕМЕНТОВ ===
 
--- Секция (заголовок + рамка)
 local function CreateSection(parent, title)
     local Section = Instance.new("Frame")
     Section.Size = UDim2.new(1, 0, 0, 0)
-    Section.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
+    Section.BackgroundColor3 = Color3.fromRGB(50, 50, 58)
     Section.BorderSizePixel = 0
     Section.AutomaticSize = Enum.AutomaticSize.Y
     Section.Parent = parent
@@ -146,7 +183,7 @@ local function CreateSection(parent, title)
     
     local TitleLabel = Instance.new("TextLabel")
     TitleLabel.Size = UDim2.new(1, 0, 0, 35)
-    TitleLabel.BackgroundColor3 = Color3.fromRGB(55, 55, 65)
+    TitleLabel.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
     TitleLabel.Text = title
     TitleLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
     TitleLabel.TextSize = 16
@@ -167,11 +204,10 @@ local function CreateSection(parent, title)
     return ContentFrame
 end
 
--- Тоггл (вкл/выкл)
 local function CreateToggle(parent, text, default, callback)
     local ToggleFrame = Instance.new("Frame")
     ToggleFrame.Size = UDim2.new(1, 0, 0, 40)
-    ToggleFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 58)
+    ToggleFrame.BackgroundColor3 = Color3.fromRGB(55, 55, 63)
     ToggleFrame.BorderSizePixel = 0
     ToggleFrame.Parent = parent
     
@@ -186,7 +222,7 @@ local function CreateToggle(parent, text, default, callback)
     Label.TextXAlignment = Enum.TextXAlignment.Left
     Label.TextColor3 = Color3.fromRGB(220, 220, 220)
     Label.BackgroundTransparency = 1
-    Label.TextSize = 15
+    Label.TextSize = 14
     Label.Font = Enum.Font.Gotham
     Label.Parent = ToggleFrame
     
@@ -195,8 +231,8 @@ local function CreateToggle(parent, text, default, callback)
     ToggleBtn.Position = UDim2.new(1, -75, 0, 5)
     ToggleBtn.Text = default and "ON" or "OFF"
     ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    ToggleBtn.TextSize = 14
-    ToggleBtn.BackgroundColor3 = default and Color3.fromRGB(70, 130, 70) or Color3.fromRGB(130, 70, 70)
+    ToggleBtn.TextSize = 13
+    ToggleBtn.BackgroundColor3 = default and Color3.fromRGB(70, 130, 70) or Color3.fromRGB(160, 70, 70)
     ToggleBtn.BorderSizePixel = 0
     ToggleBtn.Parent = ToggleFrame
     
@@ -209,15 +245,14 @@ local function CreateToggle(parent, text, default, callback)
     ToggleBtn.MouseButton1Click:Connect(function()
         state = not state
         ToggleBtn.Text = state and "ON" or "OFF"
-        ToggleBtn.BackgroundColor3 = state and Color3.fromRGB(70, 130, 70) or Color3.fromRGB(130, 70, 70)
+        ToggleBtn.BackgroundColor3 = state and Color3.fromRGB(70, 130, 70) or Color3.fromRGB(160, 70, 70)
         if callback then callback(state) end
     end)
     
     return {Get = function() return state end}
 end
 
--- Список для выбора (кнопки с вариантами)
-local function CreateOptionList(parent, label, items, default, onSelect)
+local function CreateOptionButtons(parent, label, items, default, onSelect)
     local Container = Instance.new("Frame")
     Container.Size = UDim2.new(1, 0, 0, 0)
     Container.BackgroundTransparency = 1
@@ -229,7 +264,7 @@ local function CreateOptionList(parent, label, items, default, onSelect)
     LabelText.BackgroundTransparency = 1
     LabelText.Text = label
     LabelText.TextColor3 = Color3.fromRGB(180, 180, 200)
-    LabelText.TextSize = 14
+    LabelText.TextSize = 13
     LabelText.TextXAlignment = Enum.TextXAlignment.Left
     LabelText.Font = Enum.Font.Gotham
     LabelText.Parent = Container
@@ -243,7 +278,7 @@ local function CreateOptionList(parent, label, items, default, onSelect)
     local FlowLayout = Instance.new("UIListLayout")
     FlowLayout.FillDirection = Enum.FillDirection.Horizontal
     FlowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-    FlowLayout.Padding = UDim.new(0, 10)
+    FlowLayout.Padding = UDim.new(0, 8)
     FlowLayout.Parent = ButtonsFrame
     
     local selected = default or items[1]
@@ -251,10 +286,10 @@ local function CreateOptionList(parent, label, items, default, onSelect)
     
     for _, item in ipairs(items) do
         local Btn = Instance.new("TextButton")
-        Btn.Size = UDim2.new(0, 100, 0, 35)
+        Btn.Size = UDim2.new(0, 90, 0, 32)
         Btn.Text = item
         Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        Btn.TextSize = 14
+        Btn.TextSize = 13
         Btn.BackgroundColor3 = (item == selected) and Color3.fromRGB(70, 130, 70) or Color3.fromRGB(60, 60, 70)
         Btn.BorderSizePixel = 0
         Btn.Parent = ButtonsFrame
@@ -278,20 +313,13 @@ local function CreateOptionList(parent, label, items, default, onSelect)
     return {Get = function() return selected end}
 end
 
--- Выбор лимита (числа)
-local function CreateLimitList(parent, label, onSelect)
-    local items = {"1", "5", "10", "25", "50", "100", "∞"}
-    return CreateOptionList(parent, label, items, "∞", onSelect)
-end
-
--- Кнопка действия
-local function CreateActionButton(parent, text, color, callback)
+local function CreateButton(parent, text, color, callback)
     local Button = Instance.new("TextButton")
-    Button.Size = UDim2.new(1, -20, 0, 45)
-    Button.Position = UDim2.new(0, 10, 0, 0)
+    Button.Size = UDim2.new(1, -20, 0, 42)
+    Button.Position = UDim2.new(0, 10, 0, 5)
     Button.Text = text
     Button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Button.TextSize = 16
+    Button.TextSize = 15
     Button.BackgroundColor3 = color or Color3.fromRGB(70, 130, 70)
     Button.BorderSizePixel = 0
     Button.Parent = parent
@@ -305,74 +333,74 @@ local function CreateActionButton(parent, text, color, callback)
     return Button
 end
 
--- Статусная строка
-local function CreateStatusLabel(parent)
+local function CreateStatus(parent)
     local Status = Instance.new("TextLabel")
-    Status.Size = UDim2.new(1, -20, 0, 40)
-    Status.Position = UDim2.new(0, 10, 0, 0)
-    Status.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-    Status.Text = "Статус: Ожидание"
+    Status.Size = UDim2.new(1, -20, 0, 38)
+    Status.Position = UDim2.new(0, 10, 0, 5)
+    Status.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+    Status.Text = "Статус: Готов"
     Status.TextColor3 = Color3.fromRGB(200, 200, 200)
-    Status.TextSize = 13
+    Status.TextSize = 12
     Status.Font = Enum.Font.Gotham
     Status.Parent = parent
     
     local StatusCorner = Instance.new("UICorner")
-    StatusCorner.CornerRadius = UDim.new(0, 8)
+    StatusCorner.CornerRadius = UDim.new(0, 6)
     StatusCorner.Parent = Status
     
     return Status
 end
 
---// === СОЗДАНИЕ КОНТЕНТА ДЛЯ КАЖДОГО РАЗДЕЛА ===
+--// === СОЗДАНИЕ РАЗДЕЛОВ ===
 
 -- Данные для разделов
-local sections = {
-    Seed = {name = "🌱 Seed Shop", content = nil, toggles = {}, selects = {}},
-    Gear = {name = "🎒 Gear Shop", content = nil, toggles = {}, selects = {}},
-    Event = {name = "🎪 Event Shop", content = nil, toggles = {}, selects = {}},
-    Settings = {name = "⚙️ Настройки", content = nil, toggles = {}, selects = {}}
-}
+local sections = {}
+local currentSection = nil
+local tabButtons = {}
 
 -- 1. Seed Shop
-sections.Seed.content = CreateSection(RightScroll, "🌱 Магазин семян")
-sections.Seed.toggles.auto = CreateToggle(sections.Seed.content, "Автопокупка семян", false)
-sections.Seed.selects.seed = CreateOptionList(sections.Seed.content, "Выберите семя", 
-    {"Blueberry", "Raspberry", "Blackberry", "Strawberry", "Cocoa", "Grape", "Pepper", "Cacao"}, "Blueberry")
-sections.Seed.selects.limit = CreateLimitList(sections.Seed.content, "Лимит покупки")
-CreateActionButton(sections.Seed.content, "🌱 Купить сейчас", Color3.fromRGB(70, 130, 70), function()
+sections.Seed = {name = "🌱 Seed Shop", content = CreateSection(RightScroll, "🌱 Магазин семян")}
+sections.Seed.toggles = {auto = CreateToggle(sections.Seed.content, "Автопокупка семян", false)}
+sections.Seed.selects = {
+    seed = CreateOptionButtons(sections.Seed.content, "Выберите семя", {"Blueberry", "Raspberry", "Blackberry", "Strawberry", "Cocoa", "Grape", "Pepper", "Cacao"}, "Blueberry"),
+    limit = CreateOptionButtons(sections.Seed.content, "Лимит покупки", {"1", "5", "10", "25", "50", "100", "∞"}, "∞")
+}
+CreateButton(sections.Seed.content, "🌱 Купить сейчас", Color3.fromRGB(70, 130, 70), function()
     UpdateStatus("Покупка: " .. sections.Seed.selects.seed.Get())
     BuyFromSeedShop(sections.Seed.selects.seed.Get())
 end)
 
 -- 2. Gear Shop
-sections.Gear.content = CreateSection(RightScroll, "🎒 Магазин снаряжения")
-sections.Gear.toggles.auto = CreateToggle(sections.Gear.content, "Автопокупка снаряжения", false)
-sections.Gear.selects.item = CreateOptionList(sections.Gear.content, "Выберите предмет", 
-    {"Watering Can", "Hoe", "Scythe", "Fertilizer", "Scarecrow", "Sprinkler"}, "Watering Can")
-sections.Gear.selects.limit = CreateLimitList(sections.Gear.content, "Лимит покупки")
-CreateActionButton(sections.Gear.content, "🎒 Купить сейчас", Color3.fromRGB(100, 100, 200), function()
+sections.Gear = {name = "🎒 Gear Shop", content = CreateSection(RightScroll, "🎒 Магазин снаряжения")}
+sections.Gear.toggles = {auto = CreateToggle(sections.Gear.content, "Автопокупка снаряжения", false)}
+sections.Gear.selects = {
+    item = CreateOptionButtons(sections.Gear.content, "Выберите предмет", {"Watering Can", "Hoe", "Scythe", "Fertilizer", "Scarecrow", "Sprinkler"}, "Watering Can"),
+    limit = CreateOptionButtons(sections.Gear.content, "Лимит покупки", {"1", "5", "10"}, "1")
+}
+CreateButton(sections.Gear.content, "🎒 Купить сейчас", Color3.fromRGB(100, 100, 200), function()
     UpdateStatus("Покупка: " .. sections.Gear.selects.item.Get())
     BuyFromGearShop(sections.Gear.selects.item.Get())
 end)
 
 -- 3. Event Shop
-sections.Event.content = CreateSection(RightScroll, "🎪 Ивент-магазин")
-sections.Event.toggles.auto = CreateToggle(sections.Event.content, "Автопокупка ивент-вещей", false)
-sections.Event.selects.item = CreateOptionList(sections.Event.content, "Выберите предмет", 
-    {"Event Seed", "Event Tool", "Event Pet", "Cosmetic", "Limited"}, "Event Seed")
-sections.Event.selects.limit = CreateLimitList(sections.Event.content, "Лимит покупки")
-CreateActionButton(sections.Event.content, "🎪 Купить сейчас", Color3.fromRGB(200, 130, 70), function()
+sections.Event = {name = "🎪 Event Shop", content = CreateSection(RightScroll, "🎪 Ивент-магазин")}
+sections.Event.toggles = {auto = CreateToggle(sections.Event.content, "Автопокупка ивент-вещей", false)}
+sections.Event.selects = {
+    item = CreateOptionButtons(sections.Event.content, "Выберите предмет", {"Event Seed", "Event Tool", "Event Pet", "Cosmetic"}, "Event Seed"),
+    limit = CreateOptionButtons(sections.Event.content, "Лимит покупки", {"1", "5", "10", "25"}, "1")
+}
+CreateButton(sections.Event.content, "🎪 Купить сейчас", Color3.fromRGB(200, 130, 70), function()
     UpdateStatus("Покупка: " .. sections.Event.selects.item.Get())
     BuyFromEventShop(sections.Event.selects.item.Get())
 end)
 
 -- 4. Настройки
-sections.Settings.content = CreateSection(RightScroll, "⚙️ Настройки")
-sections.Settings.selects.interval = CreateOptionList(sections.Settings.content, "Интервал проверки (сек)", 
-    {"0.5", "1", "2", "3", "5", "10"}, "2")
-sections.Settings.toggles.notify = CreateToggle(sections.Settings.content, "Уведомлять о покупке", true)
-sections.Settings.status = CreateStatusLabel(sections.Settings.content)
+sections.Settings = {name = "⚙️ Настройки", content = CreateSection(RightScroll, "⚙️ Настройки")}
+sections.Settings.selects = {
+    interval = CreateOptionButtons(sections.Settings.content, "Интервал проверки (сек)", {"0.5", "1", "2", "3", "5", "10"}, "2")
+}
+sections.Settings.toggles = {notify = CreateToggle(sections.Settings.content, "Уведомлять о покупке", true)}
+sections.Settings.status = CreateStatus(sections.Settings.content)
 
 -- Обновление CanvasSize
 local function updateCanvas()
@@ -381,10 +409,93 @@ end
 RightLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvas)
 task.defer(updateCanvas)
 
+--// === ФУНКЦИИ ДЛЯ РАСШИРЕНИЯ/СВОРАЧИВАНИЯ ===
+
+local function AnimateSize(targetSize)
+    local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(MainFrame, tweenInfo, {Size = targetSize})
+    tween:Play()
+    return tween
+end
+
+local function ToggleExpand()
+    isExpanded = not isExpanded
+    
+    if isExpanded then
+        ExpandBtn.Text = "▼"
+        ContentContainer.Visible = true
+        AnimateSize(expandedSize)
+    else
+        ExpandBtn.Text = "▲"
+        ContentContainer.Visible = false
+        AnimateSize(minimizedSize)
+    end
+end
+
+local function ToggleVisibility()
+    isVisible = not isVisible
+    MainFrame.Visible = isVisible
+end
+
+-- Кнопка сворачивания
+ExpandBtn.MouseButton1Click:Connect(ToggleExpand)
+
+--// === СОЗДАНИЕ ЛЕВЫХ КНОПОК (ТАБОВ) ===
+
+local function SwitchToSection(sectionKey)
+    if currentSection then
+        currentSection.Visible = false
+    end
+    currentSection = sections[sectionKey].content
+    currentSection.Visible = true
+    
+    for key, btn in pairs(tabButtons) do
+        btn.BackgroundColor3 = (key == sectionKey) and Color3.fromRGB(70, 130, 70) or Color3.fromRGB(50, 50, 60)
+    end
+    
+    UpdateStatus("Раздел: " .. sections[sectionKey].name)
+    updateCanvas()
+end
+
+-- Создание кнопок-табов
+local tabOrder = {"Seed", "Gear", "Event", "Settings"}
+for _, key in ipairs(tabOrder) do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 48)
+    btn.Text = sections[key].name
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 14
+    btn.Font = Enum.Font.Gotham
+    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    btn.BorderSizePixel = 0
+    btn.Parent = ButtonsContainer
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 8)
+    btnCorner.Parent = btn
+    
+    btn.MouseButton1Click:Connect(function()
+        SwitchToSection(key)
+    end)
+    
+    tabButtons[key] = btn
+    
+    -- Скрыть контент сначала
+    sections[key].content.Visible = false
+end
+
+-- Обновление высоты контейнера кнопок
+ButtonsLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    ButtonsContainer.CanvasSize = UDim2.new(0, 0, 0, ButtonsLayout.AbsoluteContentSize.Y + 30)
+end)
+
+-- Активация первого раздела
+SwitchToSection("Seed")
+
 --// === ЛОГИКА АВТОПОКУПКИ ===
 
 local function UpdateStatus(text)
-    if sections.Settings.status then
+    if sections.Settings and sections.Settings.status then
         sections.Settings.status.Text = "Статус: " .. text
     end
     print("[AutoBuy] " .. text)
@@ -411,13 +522,11 @@ end
 local function BuyFromGearShop(gearName)
     UpdateStatus("Покупка " .. gearName .. " (Gear Shop)")
     -- Замените на реальное событие
-    -- game:GetService("ReplicatedStorage").GameEvents.BuyGear:FireServer(gearName)
 end
 
 local function BuyFromEventShop(itemName)
     UpdateStatus("Покупка " .. itemName .. " (Event Shop)")
     -- Замените на реальное событие
-    -- game:GetService("ReplicatedStorage").GameEvents.BuyEvent:FireServer(itemName)
 end
 
 -- Основной цикл
@@ -425,6 +534,8 @@ local function StartAutoBuy()
     while true do
         local interval = tonumber(sections.Settings.selects.interval.Get()) or 2
         wait(interval)
+        
+        if not isExpanded then wait(1) end
         
         -- Seed Shop
         if sections.Seed.toggles.auto.Get() then
@@ -462,65 +573,38 @@ local function StartAutoBuy()
     end
 end
 
---// === СОЗДАНИЕ ЛЕВЫХ КНОПОК (ТАБОВ) ===
+--// === ГОРЯЧИЕ КЛАВИШИ ===
 
-local currentSection = nil
-local tabButtons = {}
-
-local function SwitchToSection(sectionKey)
-    if currentSection then
-        currentSection.Visible = false
-    end
-    currentSection = sections[sectionKey].content
-    currentSection.Visible = true
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
     
-    for key, btn in pairs(tabButtons) do
-        btn.BackgroundColor3 = (key == sectionKey) and Color3.fromRGB(70, 130, 70) or Color3.fromRGB(50, 50, 60)
+    -- Скрытие/показ по нажатию (например, RightShift)
+    if input.KeyCode == TOGGLE_KEY then
+        ToggleVisibility()
     end
     
-    UpdateStatus("Раздел: " .. sections[sectionKey].name)
-    updateCanvas()
-end
-
--- Создание кнопок-табов
-local tabOrder = {"Seed", "Gear", "Event", "Settings"}
-for _, key in ipairs(tabOrder) do
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 50)
-    btn.Text = sections[key].name
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextSize = 15
-    btn.Font = Enum.Font.Gotham
-    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-    btn.BorderSizePixel = 0
-    btn.Parent = ButtonsContainer
-    
-    local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 8)
-    btnCorner.Parent = btn
-    
-    btn.MouseButton1Click:Connect(function()
-        SwitchToSection(key)
-    end)
-    
-    tabButtons[key] = btn
-    
-    -- Скрыть контент сначала
-    sections[key].content.Visible = false
-end
-
--- Обновление высоты контейнера кнопок
-ButtonsLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    ButtonsContainer.CanvasSize = UDim2.new(0, 0, 0, ButtonsLayout.AbsoluteContentSize.Y + 30)
+    -- Расширение/сжатие при зажатии (например, Ctrl)
+    if input.KeyCode == EXPAND_KEY then
+        if not isExpanded then
+            ToggleExpand()
+        end
+    end
 end)
 
--- Активация первого раздела
-SwitchToSection("Seed")
+UserInputService.InputEnded:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.KeyCode == EXPAND_KEY then
+        if isExpanded then
+            ToggleExpand()
+        end
+    end
+end)
 
---// Запуск автопокупки
+--// Запуск
 coroutine.wrap(StartAutoBuy)()
 
---// Перетаскивание окна
+-- Перетаскивание окна
 local dragging = false
 local dragStart, startPos
 
@@ -544,5 +628,5 @@ TitleBar.InputChanged:Connect(function(input)
     end
 end)
 
-UpdateStatus("Готово! Выберите раздел слева")
-print("Auto-Buy GUI с табами загружен!")
+UpdateStatus("Готово! RightShift - скрыть, Ctrl (зажать) - свернуть")
+print("Auto-Buy GUI с управлением загружен!")
