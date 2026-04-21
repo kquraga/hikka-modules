@@ -1,0 +1,115 @@
+--// Load ReGui
+local ReGui = loadstring(game:HttpGet('https://raw.githubusercontent.com/depthso/Dear-ReGui/refs/heads/main/ReGui.lua'))()
+
+--// Configure ReGui
+ReGui:Init({
+    Prefabs = game:GetService("InsertService"):LoadLocalAsset("rbxassetid://" .. ReGui.PrefabsId)
+})
+
+--// Create window
+local Window = ReGui:Window({
+    Title = "Auto Farm | Script",
+    Theme = "Dark",
+    Size = UDim2.fromOffset(350, 450)
+})
+
+--// Auto Farm Tab
+local FarmTab = Window:Tab({Title = "🤖 Auto Farm"})
+
+local AutoHarvest = FarmTab:Checkbox({
+    Label = "Auto Harvest",
+    Value = false,
+    Callback = function(self, value)
+        print("Auto Harvest:", value)
+    end
+})
+
+local AutoPlant = FarmTab:Checkbox({
+    Label = "Auto Plant",
+    Value = false,
+    Callback = function(self, value)
+        print("Auto Plant:", value)
+    end
+})
+
+local AutoSell = FarmTab:Checkbox({
+    Label = "Auto Sell",
+    Value = false,
+    Callback = function(self, value)
+        print("Auto Sell:", value)
+    end
+})
+
+FarmTab:Separator({Text = "Actions"})
+
+FarmTab:Button({
+    Text = "Plant All Seeds",
+    Callback = function()
+        print("Planting all seeds...")
+    end
+})
+
+FarmTab:Button({
+    Text = "Harvest All",
+    Callback = function()
+        print("Harvesting...")
+    end
+})
+
+FarmTab:Button({
+    Text = "Sell Inventory",
+    Callback = function()
+        print("Selling...")
+    end
+})
+
+--// Movement Tab
+local MoveTab = Window:Tab({Title = "🚶 Movement"})
+
+local NoClip = MoveTab:Checkbox({
+    Label = "NoClip",
+    Value = false,
+    Callback = function(self, value)
+        print("NoClip:", value)
+    end
+})
+
+local AutoWalk = MoveTab:Checkbox({
+    Label = "Auto Walk",
+    Value = false,
+    Callback = function(self, value)
+        print("Auto Walk:", value)
+    end
+})
+
+MoveTab:Slider({
+    Label = "Walk Speed",
+    Value = 16,
+    Minimum = 16,
+    Maximum = 100,
+    Callback = function(self, value)
+        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = value
+    end
+})
+
+MoveTab:Slider({
+    Label = "Jump Power",
+    Value = 50,
+    Minimum = 50,
+    Maximum = 200,
+    Callback = function(self, value)
+        game.Players.LocalPlayer.Character.Humanoid.JumpPower = value
+    end
+})
+
+--// Settings Tab
+local SettingsTab = Window:Tab({Title = "⚙️ Settings"})
+
+SettingsTab:Button({
+    Text = "Destroy GUI",
+    Callback = function()
+        Window:Destroy()
+    end
+})
+
+print("GUI Loaded with ReGui!")
